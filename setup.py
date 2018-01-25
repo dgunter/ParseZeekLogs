@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name = 'parsebrologs',
   packages = ['parsebrologs'],
-  version = '1.0',
+  version = '1.1',
   description = 'A lightweight utility for programmatically reading and manipulating Bro IDS log files and outputting into JSON or CSV format.',
   author = 'Dan Gunter',
   author_email = 'dangunter@gmail.com',
