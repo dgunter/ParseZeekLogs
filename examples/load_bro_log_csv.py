@@ -1,4 +1,4 @@
-from ParseBroLogs import ParseBroLogs
+from parsebrologs import ParseBroLogs
 
 log_data = ParseBroLogs("conn.log", fields=["ts", "id.orig_h", "id.resp_h"])
 with open('out.csv','w') as outfile:
