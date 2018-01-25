@@ -10,16 +10,17 @@ class ParseBroLogs(object):
 
     """
 
-    def __init__(self, filepath):
+    def __init__(self, filepath, fields=None):
         """ Initializes class with data from file with provided filename """
-        self.data = self._read_log(filepath)
+        self.data = self._read_log(filepath, fields)
 
-    def _read_log(self, filename):
+    def _read_log(self, filepath, fields=None):
         """ Reads data from a bro log file """
         options = OrderedDict()
+        self.filtered_fields = fields
         options['data'] = []
         options['separator'] = "\t"  # Set a default separator in case we don't get the separator
-        with open(filename) as infile:
+        with open(filepath) as infile:
             for line in infile.readlines():
                 if line.startswith("#separator"):
                     key = str(line[1:].split(" ")[0])
@@ -34,12 +35,30 @@ class ParseBroLogs(object):
                     if len(data) is len(options.get("fields")):
                         record = OrderedDict()
                         for x in range(0, len(data) - 1):
-                            record[options.get("fields")[x]] = data[x]
+                            if fields is None or options.get("fields")[x] in self.filtered_fields:
+                                record[options.get("fields")[x]] = data[x]
                         options["data"].append(record)
                     else:
                         # Arrays are not the same length
                         pass
-            return options
+        self.fields = options.get("fields")
+        return options
+
+    def get_filtered_fields(self):
+        """Returns all log fields with the field filter applied
+
+        Returns:
+            A python list containing the field names in string format with the field filter applied
+        """
+        return self.filtered_fields
+
+    def get_fields(self):
+        """Returns all fields present in the log file
+
+        Returns:
+            A python list containing all field names in the log file
+        """
+        return self.fields
 
     def to_csv(self):
         """Returns Bro data in CSV format
@@ -50,7 +69,8 @@ class ParseBroLogs(object):
         """
         csv = ""
         for v in self.data.get("fields"):
-            csv += v + ","
+            if self.filtered_fields is None or v in self.filtered_fields:
+                csv += v + ","
         csv += "\n"
         data_temp = sorted(self.data.get("data"), key=lambda record: record.get("ts"))
         for record in data_temp:
@@ -59,7 +79,7 @@ class ParseBroLogs(object):
             csv += "\n"
         return csv
 
-    def to_excel_csv(self):
+    def to_escaped_csv(self):
         """ Returns Bro data in CSV format with escape characters. This allows fields with , to properly display
 
         Returns:
@@ -68,7 +88,8 @@ class ParseBroLogs(object):
         """
         csv = ""
         for v in self.data.get("fields"):
-            csv += v + ","
+            if self.filtered_fields is None or v in self.filtered_fields:
+                csv += v + ","
         csv += "\n"
         data_temp = sorted(self.data.get("data"), key=lambda record: record.get("ts"))
         for record in data_temp:
@@ -78,10 +99,10 @@ class ParseBroLogs(object):
         return csv
 
     def to_json(self):
-        """Returns Bro data in JSON format
+        """Returns Bro data as a JSON formatted string
 
         Returns:
-            A string containing the Bro log data in JSON format.
+            The log data as a JSON formatted string
 
         """
         return json.dumps(self.data.get('data'))
