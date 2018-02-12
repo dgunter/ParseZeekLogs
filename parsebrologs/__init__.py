@@ -27,11 +27,11 @@ class ParseBroLogs(object):
                     value = str.encode(line[1:].split(" ")[1].strip()).decode('unicode_escape')
                     options[key] = value
                 elif line.startswith("#"):
-                    key = str(line[1:].split(options.get('seperator'))[0])
-                    value = line[1:].split(options.get('seperator'))[1:]
+                    key = str(line[1:].split(options.get('separator'))[0])
+                    value = line[1:].split(options.get('separator'))[1:]
                     options[key] = value
                 else:
-                    data = line.split(options.get('seperator'))
+                    data = line.split(options.get('separator'))
                     if len(data) is len(options.get("fields")):
                         record = OrderedDict()
                         for x in range(0, len(data) - 1):
