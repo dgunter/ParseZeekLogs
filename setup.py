@@ -7,7 +7,7 @@ setup(
   author = 'Dan Gunter',
   author_email = 'dangunter@gmail.com',
   url = 'https://github.com/dgunter/parsebrologs',
-  download_url = 'https://github.com/dgunter/parsebrologs/archive/v1.1.2.tar.gz',
+  download_url = 'https://github.com/dgunter/parsebrologs/archive/v1.1.3.tar.gz',
   keywords = ['InfoSec', 'Bro IDS', 'security'],
   classifiers = [],
 )
