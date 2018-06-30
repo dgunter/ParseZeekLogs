@@ -52,7 +52,7 @@ class ParseBroLogs(object):
         """
         return self.filtered_fields
 
-    def get_fields(self):
+    def get_fields(self, safe_header=False):
         """Returns all fields present in the log file
 
         Returns:
@@ -60,43 +60,58 @@ class ParseBroLogs(object):
         """
         return self.fields
 
-    def to_csv(self):
+    def to_csv(self, safe_headers=False):
         """Returns Bro data in CSV format
 
         Returns:
             A string in CSV format containing all Bro log data
 
         """
-        csv = ""
+        delim = ","
+        headers = []
         for v in self.data.get("fields"):
             if self.filtered_fields is None or v in self.filtered_fields:
-                csv += v + ","
+                if safe_headers:
+                    headers.append(v.strip().replace('.', '_'))
+                else:
+                    headers.append(v.strip())
+
+        csv = delim.join(headers)
         csv += "\n"
+
         data_temp = sorted(self.data.get("data"), key=lambda record: record.get("ts"))
         for record in data_temp:
-            for v in record.values():
-                csv += v + ","
+            csv += delim.join([ v.strip() for v in record.values() ])
             csv += "\n"
-        return csv
 
-    def to_escaped_csv(self):
+        return csv[:-1] # Remove trailing line
+
+    def to_escaped_csv(self, safe_headers=False):
         """ Returns Bro data in CSV format with escape characters. This allows fields with , to properly display
 
         Returns:
             A string in CSV format containing all Bro log data. All fields are escaped.
 
         """
-        csv = ""
+        delim = ","
+        headers = []
         for v in self.data.get("fields"):
             if self.filtered_fields is None or v in self.filtered_fields:
-                csv += v + ","
+
+                if safe_headers:
+                    headers.append("\"{}\"".format(v.strip().replace('.', '_')))
+                else:
+                    headers.append("\"{}\"".format(v.strip()))
+
+        csv = delim.join(headers)
         csv += "\n"
+
         data_temp = sorted(self.data.get("data"), key=lambda record: record.get("ts"))
         for record in data_temp:
-            for v in record.values():
-                csv += "\"" + v + "\"" + ","
+            csv += delim.join([ "\"{}\"".format(v.strip().replace('"',"\\\"")) for v in record.values() ])
             csv += "\n"
-        return csv
+
+        return csv[:-1] # Remove trailing line
 
     def to_json(self):
         """Returns Bro data as a JSON formatted string
