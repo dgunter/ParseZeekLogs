@@ -108,7 +108,7 @@ class ParseBroLogs(object):
 
         data_temp = sorted(self.data.get("data"), key=lambda record: record.get("ts"))
         for record in data_temp:
-            csv += delim.join([ "\"{}\"".format(v.strip()) for v in record.values() ])
+            csv += delim.join([ "\"{}\"".format(v.strip().replace('"',"\\\"")) for v in record.values() ])
             csv += "\n"
 
         return csv[:-1] # Remove trailing line
