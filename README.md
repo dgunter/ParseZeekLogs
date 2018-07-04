@@ -2,7 +2,7 @@
 A lightweight utility for programmatically reading and manipulating Bro IDS log files and outputting into JSON or CSV format. This library works on both Python 2 and Python 3.
 
 ## Examples
-The following example first loads records from the Bro connection log named conn.log. The data is the written out to a file named out.json. The name of the log file to read must be provided when creating the ParseBroLog class.
+The following example first loads records from the Bro connection log named conn.log. The data is the written out to a file named out.json. The name of the log file to read must be provided when creating the ParseBroLog class. You can use the safe_headers=True option in the to_json method to replace all instances of a dot with an underscore.
 ```python
 from parsebrologs import ParseBroLogs
 
@@ -39,3 +39,5 @@ df = pd.DataFrame(json.loads(log_data.to_json()))
 df
 ```
 
+## Special Thanks
+* [@geekscrapy](https://github.com/geekscrapy): For bug fixes and the safe header feature addition
