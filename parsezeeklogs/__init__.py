@@ -78,7 +78,7 @@ class ParseZeekLogs(object):
             retVal = self.fd.readline().strip()
 
         # If an empty string is returned, readline is done reading
-        if retVal == "":
+        if retVal == "" or retVal is None:
             raise StopIteration
 
         # Split out the data we are going to return
