@@ -75,7 +75,7 @@ class ParseZeekLogs(object):
             retVal = self.firstLine
             self.firstRun = False
         else:
-            retVal = self.fd.readline().strip()
+            retVal = self.fd.readline().strip("\n")
 
         # If an empty string is returned, readline is done reading
         if retVal == "" or retVal is None:
