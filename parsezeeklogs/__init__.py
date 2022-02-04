@@ -28,7 +28,7 @@ class ParseZeekLogs(object):
         meta = loads(dumps(meta).replace("'", '"'))
 
         # Read the header option lines
-        l = self.fd.readline().strip()
+        l = self.fd.readline().strip("\n")
         while l.strip().startswith("#"):
             # Parse the options out
             if l.startswith("#separator"):
@@ -41,7 +41,7 @@ class ParseZeekLogs(object):
                 self.options[key] = value
 
             # Read the next line
-            l = self.fd.readline().strip()
+            l = self.fd.readline().strip("\n")
 
         self.firstLine = l
 
