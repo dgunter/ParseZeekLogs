@@ -89,9 +89,9 @@ for rec in read_zeek("conn.log"):
     print(rec["ts"], rec["id.orig_h"], rec["id.resp_p"], rec["duration"])
 
 with ZeekLog("dns.log", fields=["ts", "query", "answers"], time_format="iso") as log:
-    print(log.path, log.types)          # "dns", {"ts": "time", "query": "string", ...}
+    print(log.path, log.types)  # "dns", {"ts": "time", "query": "string", ...}
     records = list(log)
-    print(log.skipped)                  # malformed lines that were reported and skipped
+    print(log.skipped)  # malformed lines that were reported and skipped
 ```
 
 Values arrive typed. Zeek `count`, `int` and `port` become `int`; `double`,
@@ -132,7 +132,9 @@ from parsezeeklogs.elastic import ZeekToElk, ensure_index, make_client
 
 es = make_client("https://es.example.com:9200", api_key="...", ca_certs="ca.pem")
 ensure_index(es, "zeek-ecs", ecs=True)
-result = ZeekToElk(es, index="zeek-ecs", ecs=True, metadata={"observer.name": "sensor-1"}).load("conn.log")
+result = ZeekToElk(es, index="zeek-ecs", ecs=True, metadata={"observer.name": "sensor-1"}).load(
+    "conn.log"
+)
 print(result.indexed, result.failed, result.skipped)
 ```
 
