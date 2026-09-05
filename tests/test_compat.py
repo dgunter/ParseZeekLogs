@@ -51,7 +51,8 @@ def test_dict_output_and_ignore_keys(data_dir):
     it = ParseZeekLogs(str(data_dir / "conn_2018.log"), ignore_keys=["uid", "history"])
     rec = next(it)
     assert isinstance(rec, dict)
-    assert "uid" not in rec and "history" not in rec
+    assert "uid" not in rec
+    assert "history" not in rec
     assert "uid" not in it.fields
     assert "uid" not in it.data_types
 

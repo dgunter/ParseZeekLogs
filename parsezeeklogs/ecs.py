@@ -51,6 +51,18 @@ log = logging.getLogger(__name__)
 #: Zeek log paths whose Filebeat fileset has a different name.
 PATH_TO_FILESET = {"conn": "connection"}
 
+# ECS field names used throughout.
+EVENT_TYPE = "event.type"
+EVENT_OUTCOME = "event.outcome"
+EVENT_ACTION = "event.action"
+EVENT_ID = "event.id"
+SESSION_ID = "zeek.session_id"
+SOURCE_IP = "source.ip"
+SOURCE_PORT = "source.port"
+DESTINATION_IP = "destination.ip"
+DESTINATION_PORT = "destination.port"
+NETWORK_TRANSPORT = "network.transport"
+
 Flat = dict[str, Any]
 
 
@@ -195,6 +207,32 @@ _ICMP6_PAIRS = {
 }  # fmt: skip
 
 
+def _protocol_number(proto: str | int, ip_version: int) -> int | None:
+    if isinstance(proto, int):
+        return proto
+    name = proto.lower()
+    if name == "icmp" and ip_version == 6:
+        name = "icmp6"
+    return _PROTO_NUMBERS.get(name)
+
+
+def _flow_ports(
+    number: int, sport: int | None, dport: int | None
+) -> tuple[int | None, int | None, bool] | None:
+    """Return (sport, dport, one_way) for the hash, or None when the flow has no valid ports."""
+    if number in (1, 58):
+        pairs = _ICMP4_PAIRS if number == 1 else _ICMP6_PAIRS
+        icmp_type = sport if sport is not None else 0
+        if icmp_type in pairs:
+            return icmp_type, pairs[icmp_type], False
+        return icmp_type, dport if dport is not None else 0, True
+    if number in (6, 17, 132):
+        if sport is None or dport is None:
+            return None
+        return sport, dport, False
+    return None, None, False
+
+
 def community_id(
     saddr: str,
     daddr: str,
@@ -215,30 +253,13 @@ def community_id(
         return None
     if src.version != dst.version:
         return None
-    if isinstance(proto, str):
-        name = proto.lower()
-        if name == "icmp" and src.version == 6:
-            name = "icmp6"
-        number = _PROTO_NUMBERS.get(name)
-    else:
-        number = int(proto)
+    number = _protocol_number(proto, src.version)
     if number is None:
         return None
-
-    one_way = False
-    if number in (1, 58):
-        pairs = _ICMP4_PAIRS if number == 1 else _ICMP6_PAIRS
-        icmp_type = sport if sport is not None else 0
-        if icmp_type in pairs:
-            sport, dport = icmp_type, pairs[icmp_type]
-        else:
-            one_way = True
-            sport, dport = icmp_type, dport if dport is not None else 0
-    elif number in (6, 17, 132):
-        if sport is None or dport is None:
-            return None
-    else:
-        sport = dport = None
+    ports = _flow_ports(number, sport, dport)
+    if ports is None:
+        return None
+    sport, dport, one_way = ports
 
     if not one_way and (dst.packed < src.packed or (src == dst and (dport or 0) < (sport or 0))):
         src, dst = dst, src
@@ -247,7 +268,10 @@ def community_id(
     data = struct.pack("!H", seed) + src.packed + dst.packed + struct.pack("!BB", number, 0)
     if sport is not None and dport is not None:
         data += struct.pack("!HH", sport & 0xFFFF, dport & 0xFFFF)
-    return "1:" + base64.b64encode(hashlib.sha1(data).digest()).decode("ascii")  # noqa: S324
+    # SHA-1 is what the Community ID specification mandates; this is a flow
+    # identifier, not a security control.
+    digest = hashlib.sha1(data).digest()  # NOSONAR python:S4790  # noqa: S324
+    return "1:" + base64.b64encode(digest).decode("ascii")
 
 
 # -- per-fileset logic (the ingest pipelines) --------------------------------------------
@@ -321,7 +345,7 @@ def _post_connection(flat: Flat, ns: str) -> None:
     if state in _CONN_STATES:
         message, types = _CONN_STATES[state]
         flat[f"{ns}.state_message"] = message
-        flat["event.type"] = list(types)
+        flat[EVENT_TYPE] = list(types)
 
 
 _DNS_CLASSES = {1: "IN", 3: "CH", 4: "HS", 254: "NONE", 255: "ANY"}
@@ -348,15 +372,15 @@ def _post_dns(flat: Flat, ns: str) -> None:
         flat["event.duration"] = int(round(float(rtt) * 1_000_000_000))
     rcode = flat.get(f"{ns}.rcode")
     if rcode is not None:
-        flat["event.outcome"] = "success" if rcode == 0 else "failure"
+        flat[EVENT_OUTCOME] = "success" if rcode == 0 else "failure"
 
 
 def _post_http(flat: Flat, ns: str) -> None:
-    if isinstance(flat.get("event.action"), str):
-        flat["event.action"] = flat["event.action"].lower()
+    if isinstance(flat.get(EVENT_ACTION), str):
+        flat[EVENT_ACTION] = flat[EVENT_ACTION].lower()
     status = flat.get("http.response.status_code")
     if isinstance(status, int):
-        flat["event.outcome"] = "success" if status < 400 else "failure"
+        flat[EVENT_OUTCOME] = "success" if status < 400 else "failure"
 
 
 def _x509_subjects(flat: Flat, pairs: Iterable[tuple[str, str, str]]) -> None:
@@ -409,9 +433,9 @@ def _post_kerberos(flat: Flat, ns: str) -> None:
         flat[f"{ns}.valid.days"] = int(round((valid_until - valid_from) / 86400))
     success = flat.get(f"{ns}.success")
     if success is True:
-        flat["event.outcome"] = "success"
+        flat[EVENT_OUTCOME] = "success"
     elif success is False:
-        flat["event.outcome"] = "failure"
+        flat[EVENT_OUTCOME] = "failure"
     _x509_subjects(
         flat,
         [
@@ -431,8 +455,8 @@ def _post_kerberos(flat: Flat, ns: str) -> None:
 
 def _post_files(flat: Flat, ns: str) -> None:
     session_ids = flat.get(f"{ns}.session_ids")
-    if isinstance(session_ids, list) and session_ids and "zeek.session_id" not in flat:
-        flat["zeek.session_id"] = session_ids[0]
+    if isinstance(session_ids, list) and session_ids and SESSION_ID not in flat:
+        flat[SESSION_ID] = session_ids[0]
     for hosts_key, single_key, ecs_key in (
         (f"{ns}.tx_hosts", f"{ns}.tx_host", "server.ip"),
         (f"{ns}.rx_hosts", f"{ns}.rx_host", "client.ip"),
@@ -464,37 +488,37 @@ def _post_smb_files(flat: Flat, ns: str) -> None:
         flat["file.path"] = f"{path}\\{name}"
     action = flat.get(f"{ns}.action")
     if action == "SMB::FILE_DELETE":
-        _append(flat, "event.type", "deletion")
+        _append(flat, EVENT_TYPE, "deletion")
     elif action in ("SMB::FILE_RENAME", "SMB::FILE_SET_ATTRIBUTE"):
-        _append(flat, "event.type", "change")
+        _append(flat, EVENT_TYPE, "change")
     elif action:
-        _append(flat, "event.type", "info")
+        _append(flat, EVENT_TYPE, "info")
 
 
 def _post_smb_cmd(flat: Flat, ns: str) -> None:
     status = flat.get(f"{ns}.status")
     if isinstance(status, str):
         if status.lower() == "success":
-            flat["event.outcome"] = "success"
+            flat[EVENT_OUTCOME] = "success"
         else:
-            _append(flat, "event.type", "error")
+            _append(flat, EVENT_TYPE, "error")
 
 
 def _post_socks(flat: Flat, ns: str) -> None:
     status = flat.get(f"{ns}.status")
     if status is not None:
         if status == "succeeded":
-            flat["event.outcome"] = "success"
+            flat[EVENT_OUTCOME] = "success"
         else:
-            _append(flat, "event.type", "error")
+            _append(flat, EVENT_TYPE, "error")
 
 
 def _post_sip(flat: Flat, ns: str) -> None:
     code = flat.get(f"{ns}.status.code")
     if isinstance(code, int):
-        flat["event.outcome"] = "success" if code < 400 else "failure"
+        flat[EVENT_OUTCOME] = "success" if code < 400 else "failure"
         if code >= 400:
-            _append(flat, "event.type", "error")
+            _append(flat, EVENT_TYPE, "error")
 
 
 _MYSQL_CHANGE = {"init_db", "change_user", "set_option", "drop_db", "create_db", "refresh"}
@@ -505,23 +529,23 @@ def _post_mysql(flat: Flat, ns: str) -> None:
     if not isinstance(cmd, str):
         return
     if cmd in ("connect", "connect_out"):
-        _append(flat, "event.type", "access")
+        _append(flat, EVENT_TYPE, "access")
     if cmd in _MYSQL_CHANGE:
-        _append(flat, "event.type", "change")
+        _append(flat, EVENT_TYPE, "change")
     elif cmd not in ("connect", "connect_out"):
-        _append(flat, "event.type", "info")
+        _append(flat, EVENT_TYPE, "info")
     if cmd == "connect":
-        _append(flat, "event.type", "start")
+        _append(flat, EVENT_TYPE, "start")
     if cmd == "connect_out":
-        _append(flat, "event.type", "end")
+        _append(flat, EVENT_TYPE, "end")
 
 
 def _post_ssh(flat: Flat, ns: str) -> None:
     success = flat.get(f"{ns}.auth.success")
     if success is False:
-        flat["event.outcome"] = "failure"
+        flat[EVENT_OUTCOME] = "failure"
     elif success is True:
-        flat["event.outcome"] = "success"
+        flat[EVENT_OUTCOME] = "success"
 
 
 def _post_rdp(flat: Flat, ns: str) -> None:
@@ -530,7 +554,7 @@ def _post_rdp(flat: Flat, ns: str) -> None:
 
 def _post_notice(flat: Flat, ns: str) -> None:
     if flat.get(f"{ns}.dropped") is False:
-        _append(flat, "event.type", "allowed")
+        _append(flat, EVENT_TYPE, "allowed")
 
 
 _SIGNATURE_ALGORITHMS = {
@@ -587,7 +611,7 @@ def _post_x509(flat: Flat, ns: str) -> None:
 
 def _post_metric(flat: Flat, ns: str) -> None:
     flat["event.kind"] = "metric"
-    flat.setdefault("event.type", ["info"])
+    flat.setdefault(EVENT_TYPE, ["info"])
 
 
 _POST: dict[str, Callable[[Flat, str], None]] = {
@@ -616,16 +640,16 @@ def _generic_spec(ns: str) -> dict[str, Any]:
     return {
         "renames": [
             (f"{ns}.id.orig_h", "source.address"),
-            (f"{ns}.id.orig_p", "source.port"),
+            (f"{ns}.id.orig_p", SOURCE_PORT),
             (f"{ns}.id.resp_h", "destination.address"),
-            (f"{ns}.id.resp_p", "destination.port"),
-            (f"{ns}.uid", "zeek.session_id"),
-            (f"{ns}.proto", "network.transport"),
+            (f"{ns}.id.resp_p", DESTINATION_PORT),
+            (f"{ns}.uid", SESSION_ID),
+            (f"{ns}.proto", NETWORK_TRANSPORT),
         ],
         "copies": [
-            ("zeek.session_id", "event.id", ""),
-            ("source.address", "source.ip", "ip"),
-            ("destination.address", "destination.ip", "ip"),
+            (SESSION_ID, EVENT_ID, ""),
+            ("source.address", SOURCE_IP, "ip"),
+            ("destination.address", DESTINATION_IP, "ip"),
         ],
         "drops": [],
         "event": {"kind": "event", "type": ["info"]},
@@ -634,26 +658,26 @@ def _generic_spec(ns: str) -> dict[str, Any]:
 
 
 def _common_post(flat: Flat) -> None:
-    for key in ("source.ip", "destination.ip"):
+    for key in (SOURCE_IP, DESTINATION_IP):
         _append(flat, "related.ip", flat.get(key))
     _append(flat, "related.user", flat.get("user.name"))
-    if "event.id" not in flat and "zeek.session_id" in flat:
-        flat["event.id"] = flat["zeek.session_id"]
+    if EVENT_ID not in flat and SESSION_ID in flat:
+        flat[EVENT_ID] = flat[SESSION_ID]
     src, dst, proto = (
-        flat.get("source.ip"),
-        flat.get("destination.ip"),
-        flat.get("network.transport"),
+        flat.get(SOURCE_IP),
+        flat.get(DESTINATION_IP),
+        flat.get(NETWORK_TRANSPORT),
     )
     if src and dst and proto and "network.community_id" not in flat:
         if proto == "icmp":
-            sport = flat.get("zeek.connection.icmp.type", flat.get("source.port"))
-            dport = flat.get("zeek.connection.icmp.code", flat.get("destination.port"))
+            sport = flat.get("zeek.connection.icmp.type", flat.get(SOURCE_PORT))
+            dport = flat.get("zeek.connection.icmp.code", flat.get(DESTINATION_PORT))
         else:
-            sport, dport = flat.get("source.port"), flat.get("destination.port")
+            sport, dport = flat.get(SOURCE_PORT), flat.get(DESTINATION_PORT)
         cid = community_id(src, dst, proto, _as_int(sport), _as_int(dport))
         if cid:
             flat["network.community_id"] = cid
-    if "source.ip" in flat and "event.category" not in flat:
+    if SOURCE_IP in flat and "event.category" not in flat:
         flat["event.category"] = ["network"]
 
 
@@ -674,26 +698,32 @@ _COERCE: dict[str, Callable[[Any], Any]] = {
 }
 
 
-def _coerce_types(flat: Flat) -> None:
-    for key in list(flat):
-        ftype = FIELD_TYPES.get(key)
-        value = flat[key]
-        if ftype in _COERCE and not (
-            isinstance(value, dict)
-            or (isinstance(value, list) and value and isinstance(value[0], dict))
-        ):
-            convert = _COERCE[ftype]
-            if isinstance(value, list):
-                converted = [c for c in (convert(v) for v in value) if c is not None]
-                value = converted
-            else:
-                value = convert(value)
-        if key in ARRAY_FIELDS and value is not None and not isinstance(value, list):
-            value = [value]
-        if value is None or (isinstance(value, list) and not value and key in ARRAY_FIELDS):
-            del flat[key]
+def _has_objects(value: Any) -> bool:
+    return isinstance(value, dict) or (
+        isinstance(value, list) and bool(value) and isinstance(value[0], dict)
+    )
+
+
+def _coerce_value(key: str, value: Any) -> Any:
+    """Coerce one value to its ECS/Beats type; None means "drop the field"."""
+    convert = _COERCE.get(FIELD_TYPES.get(key, ""))
+    if convert is not None and not _has_objects(value):
+        if isinstance(value, list):
+            value = [c for c in (convert(v) for v in value) if c is not None]
         else:
-            flat[key] = value
+            value = convert(value)
+    if key in ARRAY_FIELDS:
+        if value is not None and not isinstance(value, list):
+            value = [value]
+        if not value:
+            return None
+    return value
+
+
+def _coerce_types(flat: Flat) -> None:
+    coerced = {key: _coerce_value(key, value) for key, value in flat.items()}
+    flat.clear()
+    flat.update({key: value for key, value in coerced.items() if value is not None})
 
 
 def unflatten(flat: Flat) -> dict[str, Any]:
@@ -724,30 +754,24 @@ def unflatten(flat: Flat) -> dict[str, Any]:
 # -- public API -------------------------------------------------------------------------
 
 
-def to_ecs(
-    record: dict[str, Any], path: str | None, meta: dict[str, Any] | None = None
-) -> dict[str, Any]:
-    """Return the ECS document for one Zeek ``record`` from log ``path`` (``conn``, ``dns`` ...)."""
-    fileset = PATH_TO_FILESET.get(path or "", path or "unknown")
-    ns = f"zeek.{fileset}"
-    spec = FILESETS.get(fileset) or _generic_spec(ns)
-
-    flat: Flat = {}
-    ts = record.get("ts")
-    for key, value in record.items():
-        if key == "ts" or value is None:
-            continue
-        flat[f"{ns}.{key}"] = value
+def _seed_flat(record: dict[str, Any], ns: str, fileset: str, spec: dict[str, Any]) -> Flat:
+    """Apply the module's drop/rename/copy tables to the raw record."""
+    flat: Flat = {
+        f"{ns}.{key}": value for key, value in record.items() if key != "ts" and value is not None
+    }
     for key in spec["drops"]:
         flat.pop(key, None)
     for src, dst in spec["renames"]:
         _move(flat, src, dst)
-    if fileset == "connection" and flat.get("network.transport") == "icmp":
-        _move(flat, "source.port", f"{ns}.icmp.type")
-        _move(flat, "destination.port", f"{ns}.icmp.code")
+    if fileset == "connection" and flat.get(NETWORK_TRANSPORT) == "icmp":
+        _move(flat, SOURCE_PORT, f"{ns}.icmp.type")
+        _move(flat, DESTINATION_PORT, f"{ns}.icmp.code")
     for src, dst, typ in spec["copies"]:
         _copy(flat, src, dst, typ)
+    return flat
 
+
+def _add_constants(flat: Flat, ts: Any, fileset: str, spec: dict[str, Any]) -> None:
     stamp = _iso(ts)
     if stamp:
         flat["@timestamp"] = stamp
@@ -760,6 +784,16 @@ def to_ecs(
         flat.setdefault(f"network.{key}", value)
     flat.setdefault("event.kind", "event")
 
+
+def to_ecs(
+    record: dict[str, Any], path: str | None, meta: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Return the ECS document for one Zeek ``record`` from log ``path`` (``conn``, ``dns`` ...)."""
+    fileset = PATH_TO_FILESET.get(path or "", path or "unknown")
+    ns = f"zeek.{fileset}"
+    spec = FILESETS.get(fileset) or _generic_spec(ns)
+    flat = _seed_flat(record, ns, fileset, spec)
+    _add_constants(flat, record.get("ts"), fileset, spec)
     _POST.get(fileset, lambda _f, _n: None)(flat, ns)
     _common_post(flat)
     flat["ecs.version"] = ECS_VERSION

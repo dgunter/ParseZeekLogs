@@ -105,8 +105,9 @@ def test_convert_time_formats():
 
 
 def test_convert_rejects_bad_numbers():
+    header = ZeekHeader()
     with pytest.raises(ValueError):
-        convert_value("x", "count", ZeekHeader(), "epoch")
+        convert_value("x", "count", header, "epoch")
 
 
 # -- header ----------------------------------------------------------------------------
@@ -135,13 +136,15 @@ def test_header_directives_and_custom_separators():
 
 
 def test_header_missing_fields_is_an_error():
+    src = io.StringIO("#separator \\x09\n#path\tx\n")
     with pytest.raises(ValueError, match="no #fields"):
-        ZeekLog(io.StringIO("#separator \\x09\n#path\tx\n"))
+        ZeekLog(src)
 
 
 def test_header_fields_types_mismatch_is_an_error():
+    src = io.StringIO("#separator \\x09\n#fields\ta\tb\n#types\tcount\n")
     with pytest.raises(ValueError, match="disagree"):
-        ZeekLog(io.StringIO("#separator \\x09\n#fields\ta\tb\n#types\tcount\n"))
+        ZeekLog(src)
 
 
 def test_header_repeated_mid_stream_is_reparsed():
@@ -373,8 +376,10 @@ def test_dns_vectors_from_zeek8(data_dir):
     with_answers = [r for r in records if r["answers"]]
     assert with_answers, "expected at least one answered query"
     rec = with_answers[0]
-    assert isinstance(rec["answers"], list) and all(isinstance(a, str) for a in rec["answers"])
-    assert isinstance(rec["TTLs"], list) and all(isinstance(t, float) for t in rec["TTLs"])
+    assert isinstance(rec["answers"], list)
+    assert all(isinstance(a, str) for a in rec["answers"])
+    assert isinstance(rec["TTLs"], list)
+    assert all(isinstance(t, float) for t in rec["TTLs"])
     assert len(rec["answers"]) == len(rec["TTLs"])
 
 

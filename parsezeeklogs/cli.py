@@ -175,15 +175,15 @@ def _records(args: argparse.Namespace) -> Iterator[dict[str, Any]]:
                 yield from zeek_log
 
 
-def _run_json(args: argparse.Namespace) -> int:
+def _run_json(args: argparse.Namespace) -> int | None:
     with _Output(args.output) as out:
         count = write_json_lines(_records(args), out)
     if args.output != "-":
         log.info("%d records written to %s", count, args.output)
-    return 0
+    return None
 
 
-def _run_csv(args: argparse.Namespace) -> int:
+def _run_csv(args: argparse.Namespace) -> int | None:
     fields = args.fields
     if fields is None:
         with ZeekLog(args.logfile[0], safe_headers=args.safe_headers) as first:
@@ -194,19 +194,18 @@ def _run_csv(args: argparse.Namespace) -> int:
         count = write_csv(_records(args), out, fields, header=not args.no_header)
     if args.output != "-":
         log.info("%d records written to %s", count, args.output)
-    return 0
+    return None
 
 
-def _run_fields(args: argparse.Namespace) -> int:
+def _run_fields(args: argparse.Namespace) -> None:
     with ZeekLog(args.logfile) as zeek_log:
         if zeek_log.is_json:
             first = next(iter(zeek_log), {})
             for name, value in first.items():
                 sys.stdout.write(f"{name}\t{type(value).__name__}\n")
-            return 0
+            return
         for name, ztype in zeek_log.types.items():
             sys.stdout.write(f"{name}\t{ztype}\n")
-    return 0
 
 
 def _run_elk(args: argparse.Namespace) -> int:
@@ -264,7 +263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.getLogger("parsezeeklogs").setLevel(level)
     logging.getLogger("elastic_transport").setLevel(logging.WARNING)
     try:
-        return _COMMANDS[args.command](args)
+        return _COMMANDS[args.command](args) or 0
     except BrokenPipeError:
         # Downstream (e.g. `head`) closed the pipe; that is not an error worth reporting.
         return 0

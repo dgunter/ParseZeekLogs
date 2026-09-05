@@ -66,7 +66,8 @@ def test_community_id_known_vector():
 def test_community_id_icmp_and_ipv6_and_errors():
     echo = community_id("10.0.0.1", "10.0.0.2", "icmp", 8, 0)
     reply = community_id("10.0.0.2", "10.0.0.1", "icmp", 0, 0)
-    assert echo == reply and echo.startswith("1:")
+    assert echo == reply
+    assert echo.startswith("1:")
     assert community_id("10.0.0.1", "10.0.0.2", "icmp", 3, 1) != echo  # one-way type
     assert community_id("fe80::1", "fe80::2", "icmp", 128, 0) == community_id(
         "fe80::2", "fe80::1", "icmp", 129, 0
@@ -93,22 +94,30 @@ def test_conn_record_maps_to_ecs():
     assert f["event.kind"] == "event"
     assert f["event.category"] == ["network"]
     assert f["event.type"] == ["connection", "start", "end"]
-    assert f["event.id"] == "CabcDEF123" and f["zeek.session_id"] == "CabcDEF123"
+    assert f["event.id"] == "CabcDEF123"
+    assert f["zeek.session_id"] == "CabcDEF123"
     assert f["event.duration"] == 1_250_000_000
-    assert f["source.ip"] == "10.0.0.5" and f["source.address"] == "10.0.0.5"
-    assert f["source.port"] == 51234 and f["destination.port"] == 443
+    assert f["source.ip"] == "10.0.0.5"
+    assert f["source.address"] == "10.0.0.5"
+    assert f["source.port"] == 51234
+    assert f["destination.port"] == 443
     assert f["destination.ip"] == "93.184.216.34"
-    assert f["source.bytes"] == 620 and f["destination.bytes"] == 2640
-    assert f["source.packets"] == 10 and f["destination.packets"] == 12
-    assert f["network.bytes"] == 3260 and f["network.packets"] == 22
-    assert f["network.transport"] == "tcp" and f["network.protocol"] == "ssl"
+    assert f["source.bytes"] == 620
+    assert f["destination.bytes"] == 2640
+    assert f["source.packets"] == 10
+    assert f["destination.packets"] == 12
+    assert f["network.bytes"] == 3260
+    assert f["network.packets"] == 22
+    assert f["network.transport"] == "tcp"
+    assert f["network.protocol"] == "ssl"
     assert f["network.direction"] == "outbound"
     assert f["network.community_id"].startswith("1:")
     assert f["related.ip"] == ["10.0.0.5", "93.184.216.34"]
     assert f["tags"] == ["local_orig"]
     assert f["zeek.connection.state"] == "SF"
     assert f["zeek.connection.state_message"] == "Normal establishment and termination."
-    assert f["zeek.connection.local_orig"] is True and f["zeek.connection.local_resp"] is False
+    assert f["zeek.connection.local_orig"] is True
+    assert f["zeek.connection.local_resp"] is False
     assert f["zeek.connection.history"] == "ShADadFf"
     assert f["observer.name"] == "sensor1"
     # dropped by the module and never emitted
@@ -141,8 +150,10 @@ def test_conn_direction(orig, resp, direction):
 def test_conn_icmp_ports_become_type_and_code():
     rec = dict(CONN, proto="icmp", **{"id.orig_p": 8, "id.resp_p": 0}, conn_state="OTH")
     f = flat(to_ecs(rec, "conn"))
-    assert "source.port" not in f and "destination.port" not in f
-    assert f["zeek.connection.icmp.type"] == 8 and f["zeek.connection.icmp.code"] == 0
+    assert "source.port" not in f
+    assert "destination.port" not in f
+    assert f["zeek.connection.icmp.type"] == 8
+    assert f["zeek.connection.icmp.code"] == 0
     assert f["network.community_id"] == community_id("10.0.0.5", "93.184.216.34", "icmp", 8, 0)
     assert f["event.type"] == ["connection", "info"]
 
@@ -160,8 +171,11 @@ def test_conn_unknown_state_and_missing_fields():
         "duration": None,
     }
     f = flat(to_ecs(rec, "conn"))
-    assert "event.type" not in f and "zeek.connection.state_message" not in f
-    assert "event.duration" not in f and "network.bytes" not in f and "tags" not in f
+    assert "event.type" not in f
+    assert "zeek.connection.state_message" not in f
+    assert "event.duration" not in f
+    assert "network.bytes" not in f
+    assert "tags" not in f
     assert f["zeek.connection.state"] == "??"
 
 
@@ -197,23 +211,20 @@ def test_dns_answer_record():
     }
     f = flat(to_ecs(rec, "dns"))
     assert f["event.dataset"] == "zeek.dns"
-    assert f["event.category"] == ["network"] and f["event.type"] == [
-        "connection",
-        "info",
-        "protocol",
-    ]
+    assert f["event.category"] == ["network"]
+    assert f["event.type"] == ["connection", "info", "protocol"]
     assert f["dns.id"] == "4660"  # ECS dns.id is keyword
     assert f["dns.question.name"] == "www.example.com"
-    assert f["dns.question.type"] == "A" and f["dns.question.class"] == "IN"
+    assert f["dns.question.type"] == "A"
+    assert f["dns.question.class"] == "IN"
     assert f["dns.response_code"] == "NOERROR"
     assert f["dns.header_flags"] == ["RD", "RA"]
     assert f["dns.type"] == "answer"
     assert f["dns.resolved_ip"] == ["93.184.216.34"]
     assert f["event.duration"] == 20_000_000
     assert f["event.outcome"] == "success"
-    assert (
-        f["zeek.dns.trans_id"] == "4660" and f["zeek.dns.rtt"] == 0.02
-    )  # Beats stores it as keyword
+    assert f["zeek.dns.trans_id"] == "4660"  # Beats stores it as keyword
+    assert f["zeek.dns.rtt"] == 0.02
     assert "zeek.dns.Z" not in f
     doc = to_ecs(rec, "dns")
     assert doc["dns"]["answers"] == [
@@ -240,7 +251,8 @@ def test_dns_query_only_and_failure():
     assert f["dns.type"] == "query"
     assert f["dns.question.class"] == "99"
     assert f["event.outcome"] == "failure"
-    assert "dns.header_flags" not in f and "dns.answers" not in f
+    assert "dns.header_flags" not in f
+    assert "dns.answers" not in f
 
 
 # -- http / ssl / files / kerberos / ntlm / smb / notice / x509 / weird -------------------
@@ -266,10 +278,16 @@ def test_http_record():
         "response_body_len": 12,
     }
     f = flat(to_ecs(rec, "http"))
-    assert f["http.request.method"] == "GET" and f["event.action"] == "get"
-    assert f["http.response.status_code"] == 404 and f["event.outcome"] == "failure"
-    assert f["url.domain"] == "example.com" and f["url.original"] == "/x" and f["url.port"] == 80
-    assert f["url.username"] == "bob" and f["user.name"] == "bob" and f["related.user"] == ["bob"]
+    assert f["http.request.method"] == "GET"
+    assert f["event.action"] == "get"
+    assert f["http.response.status_code"] == 404
+    assert f["event.outcome"] == "failure"
+    assert f["url.domain"] == "example.com"
+    assert f["url.original"] == "/x"
+    assert f["url.port"] == 80
+    assert f["url.username"] == "bob"
+    assert f["user.name"] == "bob"
+    assert f["related.user"] == ["bob"]
     assert f["user_agent.original"] == "curl/8"
     assert f["http.request.referrer"] == "http://r/"
     assert f["event.category"] == ["network", "web"]
@@ -295,19 +313,22 @@ def test_ssl_record():
         "ja3s": "def",
     }
     f = flat(to_ecs(rec, "ssl"))
-    assert f["tls.version"] == "1.2" and f["tls.version_protocol"] == "tls"
-    assert f["tls.cipher"] == "TLS_AES_128_GCM_SHA256" and f["tls.curve"] == "x25519"
-    assert f["tls.established"] is True and f["tls.resumed"] is False
-    assert (
-        f["tls.client.server_name"] == "example.com" and f["zeek.ssl.server.name"] == "example.com"
-    )
+    assert f["tls.version"] == "1.2"
+    assert f["tls.version_protocol"] == "tls"
+    assert f["tls.cipher"] == "TLS_AES_128_GCM_SHA256"
+    assert f["tls.curve"] == "x25519"
+    assert f["tls.established"] is True
+    assert f["tls.resumed"] is False
+    assert f["tls.client.server_name"] == "example.com"
+    assert f["zeek.ssl.server.name"] == "example.com"
     assert f["tls.server.subject"] == "CN=example.com,O=Example\\, Inc,C=US"
     # ECS declares x509 subject/issuer attributes as arrays; the zeek.* copies are scalars
     assert f["tls.server.x509.subject.common_name"] == ["example.com"]
     assert f["tls.server.x509.subject.organization"] == ["Example Inc"]
     assert f["tls.server.x509.issuer.common_name"] == ["R3"]
     assert f["zeek.ssl.server.subject.country"] == "US"
-    assert f["tls.client.ja3"] == "abc" and f["tls.server.ja3s"] == "def"
+    assert f["tls.client.ja3"] == "abc"
+    assert f["tls.server.ja3s"] == "def"
     assert flat(to_ecs(dict(rec, version="SSLv3"), "ssl"))["tls.version"] == "3.0"
     assert "tls.version" not in flat(to_ecs(dict(rec, version="weird"), "ssl"))
 
@@ -334,16 +355,21 @@ def test_files_record():
         "x509": None,
     }
     f = flat(to_ecs(rec, "files"))
-    assert f["event.category"] == ["file"] and f["event.type"] == ["info"]
-    assert f["zeek.session_id"] == "Cconn" and f["event.id"] == "Cconn"
+    assert f["event.category"] == ["file"]
+    assert f["event.type"] == ["info"]
+    assert f["zeek.session_id"] == "Cconn"
+    assert f["event.id"] == "Cconn"
     assert f["zeek.files.session_ids"] == ["Cconn"]
-    assert f["server.ip"] == "10.0.0.6" and f["client.ip"] == "10.0.0.5"
-    assert f["zeek.files.tx_host"] == "10.0.0.6" and "zeek.files.tx_hosts" not in f
+    assert f["server.ip"] == "10.0.0.6"
+    assert f["client.ip"] == "10.0.0.5"
+    assert f["zeek.files.tx_host"] == "10.0.0.6"
+    assert "zeek.files.tx_hosts" not in f
     assert set(f["related.ip"]) == {"10.0.0.5", "10.0.0.6"}
-    assert (
-        f["file.name"] == "a.txt" and f["file.size"] == 12 and f["file.mime_type"] == "text/plain"
-    )
-    assert f["file.hash.md5"] == "m" and f["related.hash"] == ["m", "s1", "s2"]
+    assert f["file.name"] == "a.txt"
+    assert f["file.size"] == 12
+    assert f["file.mime_type"] == "text/plain"
+    assert f["file.hash.md5"] == "m"
+    assert f["related.hash"] == ["m", "s1", "s2"]
 
 
 def test_kerberos_record():
@@ -366,9 +392,11 @@ def test_kerberos_record():
         "client_cert_subject": "CN=bob,OU=Users",
     }
     f = flat(to_ecs(rec, "kerberos"))
-    assert f["event.action"] == "TGS" and f["event.outcome"] == "success"
+    assert f["event.action"] == "TGS"
+    assert f["event.outcome"] == "success"
     assert f["zeek.kerberos.valid.days"] == 10
-    assert f["client.address"] == "10.0.0.5" and f["server.address"] == "10.0.0.6"
+    assert f["client.address"] == "10.0.0.5"
+    assert f["server.address"] == "10.0.0.6"
     assert f["tls.client.x509.subject.common_name"] == ["bob"]
     assert f["zeek.kerberos.cert.client.subject"] == "CN=bob,OU=Users"
     assert "zeek.kerberos.client_cert_subject" not in f
@@ -390,7 +418,9 @@ def test_ntlm_and_smb_and_weird_and_notice():
         "success": True,
     }
     f = flat(to_ecs(ntlm, "ntlm"))
-    assert f["user.name"] == "bob" and f["user.domain"] == "CORP" and f["related.user"] == ["bob"]
+    assert f["user.name"] == "bob"
+    assert f["user.domain"] == "CORP"
+    assert f["related.user"] == ["bob"]
     assert f["event.category"] == ["authentication", "network"]
 
     smb = {
@@ -411,19 +441,15 @@ def test_ntlm_and_smb_and_weird_and_notice():
         "times.changed": TS,
     }
     f = flat(to_ecs(smb, "smb_files"))
-    assert f["event.action"] == "SMB::FILE_DELETE" and f["event.type"] == [
-        "connection",
-        "protocol",
-        "deletion",
-    ]
-    assert f["file.name"] == "doc.txt" and f["file.size"] == 5
+    assert f["event.action"] == "SMB::FILE_DELETE"
+    assert f["event.type"] == ["connection", "protocol", "deletion"]
+    assert f["file.name"] == "doc.txt"
+    assert f["file.size"] == 5
     assert f["file.path"] == "\\\\srv\\share\\doc.txt"
-    assert (
-        f["file.mtime"] == ISO
-        and f["file.created"] == ISO
-        and f["file.accessed"] == ISO
-        and f["file.ctime"] == ISO
-    )
+    assert f["file.mtime"] == ISO
+    assert f["file.created"] == ISO
+    assert f["file.accessed"] == ISO
+    assert f["file.ctime"] == ISO
     assert f["zeek.smb_files.times.modified"] == ISO  # zeek.* date field coerced too
     f2 = flat(to_ecs(dict(smb, action="SMB::FILE_OPEN"), "smb_files"))
     assert f2["event.type"][-1] == "info"
@@ -441,7 +467,8 @@ def test_ntlm_and_smb_and_weird_and_notice():
         "source": "TCP",
     }
     f = flat(to_ecs(weird, "weird"))
-    assert f["rule.name"] == "bad_TCP_checksum" and f["event.kind"] == "alert"
+    assert f["rule.name"] == "bad_TCP_checksum"
+    assert f["event.kind"] == "alert"
 
     notice = {
         "ts": TS,
@@ -460,8 +487,10 @@ def test_ntlm_and_smb_and_weird_and_notice():
         "suppress_for": 3600.0,
     }
     f = flat(to_ecs(notice, "notice"))
-    assert f["rule.name"] == "Scan::Port_Scan" and f["rule.description"] == "scanned"
-    assert f["event.kind"] == "alert" and f["event.category"] == ["intrusion_detection"]
+    assert f["rule.name"] == "Scan::Port_Scan"
+    assert f["rule.description"] == "scanned"
+    assert f["event.kind"] == "alert"
+    assert f["event.category"] == ["intrusion_detection"]
     assert f["event.type"] == ["info", "allowed"]
     assert "zeek.notice.actions" not in f
 
@@ -486,22 +515,23 @@ def test_x509_record():
         "basic_constraints.ca": False,
     }
     f = flat(to_ecs(rec, "x509"))
-    assert (
-        f["event.dataset"] == "zeek.x509" and f["zeek.session_id"] == "F1" and f["event.id"] == "F1"
-    )
+    assert f["event.dataset"] == "zeek.x509"
+    assert f["zeek.session_id"] == "F1"
+    assert f["event.id"] == "F1"
     assert f["file.x509.signature_algorithm"] == "SHA256-RSA"
-    assert (
-        f["file.x509.public_key_algorithm"] == "rsaEncryption"
-        and f["file.x509.public_key_size"] == 2048
-    )
+    assert f["file.x509.public_key_algorithm"] == "rsaEncryption"
+    assert f["file.x509.public_key_size"] == 2048
     assert f["file.x509.public_key_exponent"] == 65537
-    assert f["file.x509.serial_number"] == "0A1B" and f["file.x509.version_number"] == "3"
+    assert f["file.x509.serial_number"] == "0A1B"
+    assert f["file.x509.version_number"] == "3"
     assert f["file.x509.alternative_names"] == ["example.com", "www.example.com", "10.0.0.1"]
-    assert f["file.x509.not_before"] == ISO and f["zeek.x509.certificate.valid.from"] == ISO
+    assert f["file.x509.not_before"] == ISO
+    assert f["zeek.x509.certificate.valid.from"] == ISO
     assert f["file.x509.subject.common_name"] == ["example.com"]
     assert f["file.x509.issuer.organization"] == ["Let's Encrypt"]
     assert f["zeek.x509.certificate.issuer.common_name"] == "R3"
-    assert "zeek.x509.certificate.iss" not in f and "zeek.x509.certificate.sub" not in f
+    assert "zeek.x509.certificate.iss" not in f
+    assert "zeek.x509.certificate.sub" not in f
     assert f["zeek.x509.basic_constraints.certificate_authority"] is False
 
 
@@ -523,12 +553,14 @@ def test_other_filesets_outcomes():
     assert flat(to_ecs(dict(base, **{"auth.success": True}), "ssh"))["event.outcome"] == "success"
     assert flat(to_ecs(dict(base, ssl=True, cookie="x"), "rdp"))["tls.established"] is True
     f = flat(to_ecs(dict(base, command="READ", status="ACCESS_DENIED", username="bob"), "smb_cmd"))
-    assert f["event.type"][-1] == "error" and f["user.name"] == "bob"
+    assert f["event.type"][-1] == "error"
+    assert f["user.name"] == "bob"
     assert flat(to_ecs(dict(base, status="SUCCESS"), "smb_cmd"))["event.outcome"] == "success"
     assert flat(to_ecs(dict(base, status="succeeded"), "socks"))["event.outcome"] == "success"
     assert flat(to_ecs(dict(base, status="failed"), "socks"))["event.type"][-1] == "error"
     f = flat(to_ecs(dict(base, **{"status_code": 404}), "sip"))
-    assert f["event.outcome"] == "failure" and f["event.type"][-1] == "error"
+    assert f["event.outcome"] == "failure"
+    assert f["event.type"][-1] == "error"
     assert flat(to_ecs(dict(base, cmd="connect"), "mysql"))["event.type"] == [
         "connection",
         "protocol",
@@ -550,11 +582,9 @@ def test_other_filesets_outcomes():
             "capture_loss",
         )
     )
-    assert (
-        f["event.kind"] == "metric"
-        and f["event.type"] == ["info"]
-        and f["zeek.capture_loss.percent_lost"] == 0.0
-    )
+    assert f["event.kind"] == "metric"
+    assert f["event.type"] == ["info"]
+    assert f["zeek.capture_loss.percent_lost"] == 0.0
 
 
 def test_unknown_log_gets_generic_mapping():
@@ -567,12 +597,11 @@ def test_unknown_log_gets_generic_mapping():
         "unparsed_version": "Firefox/100",
     }
     f = flat(to_ecs(rec, "software"))
-    assert (
-        f["event.dataset"] == "zeek.software"
-        and f["event.kind"] == "event"
-        and f["event.type"] == ["info"]
-    )
-    assert f["zeek.software.name"] == "Firefox" and f["zeek.software.version.major"] == 100
+    assert f["event.dataset"] == "zeek.software"
+    assert f["event.kind"] == "event"
+    assert f["event.type"] == ["info"]
+    assert f["zeek.software.name"] == "Firefox"
+    assert f["zeek.software.version.major"] == 100
     assert "event.category" not in f
     rec2 = {
         "ts": TS,
@@ -585,8 +614,11 @@ def test_unknown_log_gets_generic_mapping():
         "message_id": 1,
     }
     f2 = flat(to_ecs(rec2, "ldap"))
-    assert f2["source.ip"] == "10.0.0.5" and f2["destination.port"] == 389 and f2["event.id"] == "C"
-    assert f2["event.category"] == ["network"] and f2["network.community_id"].startswith("1:")
+    assert f2["source.ip"] == "10.0.0.5"
+    assert f2["destination.port"] == 389
+    assert f2["event.id"] == "C"
+    assert f2["event.category"] == ["network"]
+    assert f2["network.community_id"].startswith("1:")
     assert flat(to_ecs({"a": 1}, None))["event.dataset"] == "zeek.unknown"
 
 
@@ -610,14 +642,19 @@ def test_type_coercion_follows_ecs():
     }
     f = flat(to_ecs(rec, "conn"))
     assert f["@timestamp"] == ISO
-    assert f["event.id"] == "12345" and f["zeek.session_id"] == "12345"  # keyword
-    assert (
-        f["source.ip"] == "10.0.0.5" and f["source.port"] == 51234 and f["destination.port"] == 443
-    )
-    assert "destination.ip" not in f and f["destination.address"] == "not-an-ip"
+    assert f["event.id"] == "12345"  # keyword
+    assert f["zeek.session_id"] == "12345"
+    assert f["source.ip"] == "10.0.0.5"
+    assert f["source.port"] == 51234
+    assert f["destination.port"] == 443
+    assert "destination.ip" not in f
+    assert f["destination.address"] == "not-an-ip"
     assert f["related.ip"] == ["10.0.0.5"]
-    assert f["zeek.connection.local_orig"] is True and f["tags"] == ["local_orig"]
-    assert f["source.packets"] == 3 and f["destination.packets"] == 4 and f["network.packets"] == 7
+    assert f["zeek.connection.local_orig"] is True
+    assert f["tags"] == ["local_orig"]
+    assert f["source.packets"] == 3
+    assert f["destination.packets"] == 4
+    assert f["network.packets"] == 7
     assert f["zeek.connection.missed_bytes"] == 16
     assert isinstance(f["event.category"], list)
 
@@ -663,7 +700,13 @@ def _check_types(f, name):
             expected = checks[ftype]
             values = value if isinstance(value, list) else [value]
             for v in values:
-                assert isinstance(v, expected) and not (expected is int and isinstance(v, bool)), (
+                assert isinstance(v, expected), (
+                    name,
+                    key,
+                    ftype,
+                    v,
+                )
+                assert not (expected is int and isinstance(v, bool)), (
                     name,
                     key,
                     ftype,
@@ -681,7 +724,8 @@ def test_fixture_corpus_produces_typed_documents(data_dir):
             doc = to_ecs(record, path.stem)
             f = flat(doc)
             with_records += 1
-            assert f["@timestamp"] and f["ecs.version"] == ECS_VERSION
+            assert f["@timestamp"]
+            assert f["ecs.version"] == ECS_VERSION
             assert f["event.dataset"].startswith("zeek.")
             seen_datasets.add(f["event.dataset"])
             _check_types(f, path.name)

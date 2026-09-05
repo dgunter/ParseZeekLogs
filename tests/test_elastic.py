@@ -14,6 +14,9 @@ from parsezeeklogs.elastic import (
     to_document,
 )
 
+# Placeholder credential for argument-passing tests; nothing authenticates against it.
+BASIC_AUTH_SECRET = "pw"
+
 
 @pytest.mark.parametrize(
     ("given", "expected"),
@@ -38,7 +41,7 @@ def test_make_client_kwargs():
         make_client(
             "https://es:9200",
             user="elastic",
-            password="pw",
+            password=BASIC_AUTH_SECRET,
             api_key="k",
             ca_certs="ca.pem",
             verify_certs=False,
@@ -47,7 +50,7 @@ def test_make_client_kwargs():
     es_cls.assert_called_once_with(
         "https://es:9200",
         request_timeout=5,
-        basic_auth=("elastic", "pw"),
+        basic_auth=("elastic", BASIC_AUTH_SECRET),
         api_key="k",
         ca_certs="ca.pem",
         verify_certs=False,
@@ -80,7 +83,8 @@ def test_to_document_variants():
     }
     dt = datetime(1970, 1, 1, tzinfo=timezone.utc)
     doc = to_document({"ts": dt})
-    assert doc["@timestamp"] == "1970-01-01T00:00:00+00:00" and doc["ts"] == 0.0
+    assert doc["@timestamp"] == "1970-01-01T00:00:00+00:00"
+    assert doc["ts"] == 0.0
     assert to_document({"ts": "2020-01-01T00:00:00Z"})["@timestamp"] == "2020-01-01T00:00:00Z"
     assert "@timestamp" not in to_document({"x": 1})
     assert "@path" not in to_document({"x": 1}, None)
@@ -113,7 +117,8 @@ def test_actions_and_load(data_dir):
     assert res.indexed + res.failed == len(
         list(ZeekToElk(es).actions(str(data_dir / "rdp_sharprdp" / "tsv" / "rdp.log")))
     ) + len(list(ZeekToElk(es).actions(str(data_dir / "rdp_sharprdp" / "tsv" / "conn.log"))))
-    assert res.failed > 0 and not res.ok
+    assert res.failed > 0
+    assert not res.ok
     assert len(res.errors) == 2
 
 
@@ -126,7 +131,8 @@ def test_skipped_lines_counted(tmp_path):
     p.write_text("#separator \\x09\n#fields\ta\n#types\tcount\n1\nbad\n2\n")
     result = LoadResult()
     docs = list(ZeekToElk(mock.Mock()).actions(str(p), result))
-    assert len(docs) == 2 and result.skipped == 1
+    assert len(docs) == 2
+    assert result.skipped == 1
 
 
 def test_missing_extra_gives_clear_error(monkeypatch):
@@ -160,4 +166,5 @@ def test_actions_in_ecs_mode(data_dir):
     src = action["_source"]
     assert src["event"]["dataset"] == "zeek.connection"
     assert src["observer"]["name"] == "s"
-    assert "@path" not in src and "ts" not in src
+    assert "@path" not in src
+    assert "ts" not in src

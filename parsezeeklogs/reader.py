@@ -376,6 +376,18 @@ def write_json_lines(records: Iterable[dict[str, Any]], out: IO[str]) -> int:
     return count
 
 
+def _csv_cell(value: Any, list_separator: str) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return list_separator.join("" if v is None else str(v) for v in value)
+    if isinstance(value, bool):
+        return "T" if value else "F"
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
 def write_csv(
     records: Iterable[dict[str, Any]],
     out: IO[str],
@@ -391,34 +403,21 @@ def write_csv(
     """
     import csv
 
-    writer = None
+    columns = list(fields) if fields is not None else None
+    writer: csv.DictWriter | None = None
     count = 0
     for record in records:
         if writer is None:
-            fields = list(fields) if fields is not None else list(record)
+            columns = columns if columns is not None else list(record)
             writer = csv.DictWriter(
-                out, fieldnames=fields, extrasaction="ignore", lineterminator="\n"
+                out, fieldnames=columns, extrasaction="ignore", lineterminator="\n"
             )
             if header:
                 writer.writeheader()
-        row = {}
-        for key in fields or ():
-            value = record.get(key)
-            if value is None:
-                row[key] = ""
-            elif isinstance(value, list):
-                row[key] = list_separator.join("" if v is None else str(v) for v in value)
-            elif isinstance(value, bool):
-                row[key] = "T" if value else "F"
-            elif isinstance(value, datetime):
-                row[key] = value.isoformat()
-            else:
-                row[key] = value
-        writer.writerow(row)
+        writer.writerow({key: _csv_cell(record.get(key), list_separator) for key in columns or ()})
         count += 1
-    if writer is None and header and fields:
-        writer = csv.DictWriter(out, fieldnames=list(fields), lineterminator="\n")
-        writer.writeheader()
+    if writer is None and header and columns:
+        csv.DictWriter(out, fieldnames=columns, lineterminator="\n").writeheader()
     return count
 
 

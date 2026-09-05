@@ -62,7 +62,8 @@ def test_json_and_tsv_logs_land_identically(es, index, data_dir):
     js = ZeekToElk(es, index=index, metadata={"fmt": "json"}).load(
         str(data_dir / "rdp_sharprdp" / "json" / "conn.log")
     )
-    assert tsv.ok and js.ok
+    assert tsv.ok
+    assert js.ok
     assert tsv.indexed == js.indexed
     assert _count(es, index, query={"term": {"fmt": "json"}}) == js.indexed
 
@@ -84,7 +85,8 @@ def test_legacy_batch_to_elk(es, es_url, index, data_dir):
         index=index,
         meta={"legacy": True},
     )
-    assert result.ok and result.indexed > 0
+    assert result.ok
+    assert result.indexed > 0
     assert _count(es, index, query={"term": {"legacy": True}}) == result.indexed
 
 
@@ -127,8 +129,10 @@ def test_ecs_documents_index_and_query(es, index, data_dir):
         sort=[{"@timestamp": "asc"}],
         size=1,
     )["hits"]["hits"][0]["_source"]
-    assert hit["ecs"]["version"] and hit["observer"]["name"] == "lab"
-    assert isinstance(hit["source"]["port"], int) and isinstance(hit["event"]["duration"], int)
+    assert hit["ecs"]["version"]
+    assert hit["observer"]["name"] == "lab"
+    assert isinstance(hit["source"]["port"], int)
+    assert isinstance(hit["event"]["duration"], int)
     mapping = es.indices.get_mapping(index=index)[index]["mappings"]["properties"]
     assert mapping["event"]["properties"]["duration"]["type"] == "long"
     assert mapping["zeek"]["properties"]["connection"]["properties"]["state"]["type"] == "keyword"

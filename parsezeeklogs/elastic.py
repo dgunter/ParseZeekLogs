@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 DEFAULT_INDEX = "zeeklogs"
+TIMESTAMP = "@timestamp"
 DEFAULT_BULK_SIZE = 500
 DEFAULT_PORT = 9200
 
@@ -28,7 +29,7 @@ INDEX_BODY: dict[str, Any] = {
         "date_detection": False,
         "numeric_detection": False,
         "properties": {
-            "@timestamp": {"type": "date"},
+            TIMESTAMP: {"type": "date"},
             "@path": {"type": "keyword"},
             "ts": {"type": "double"},
             "uid": {"type": "keyword"},
@@ -122,12 +123,12 @@ def to_document(record: dict[str, Any], path: str | None = None) -> dict[str, An
     doc = dict(record)
     ts = doc.get("ts")
     if isinstance(ts, (int, float)):
-        doc["@timestamp"] = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+        doc[TIMESTAMP] = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
     elif isinstance(ts, datetime):
-        doc["@timestamp"] = ts.isoformat()
+        doc[TIMESTAMP] = ts.isoformat()
         doc["ts"] = ts.timestamp()
     elif isinstance(ts, str):
-        doc["@timestamp"] = ts
+        doc[TIMESTAMP] = ts
     if path:
         doc["@path"] = path
     return doc

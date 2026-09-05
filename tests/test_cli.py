@@ -5,6 +5,9 @@ import pytest
 
 from parsezeeklogs import cli
 
+# Placeholder credential for argument-passing tests; nothing authenticates against it.
+BASIC_AUTH_SECRET = "pw"
+
 RDP = "rdp_sharprdp/tsv/rdp.log"
 
 
@@ -44,7 +47,9 @@ def test_csv_default_fields_and_safe_headers(capsys, data_dir):
     assert cli.main(["csv", str(data_dir / RDP), "--safe-headers", "-m", '{"tag": "x"}']) == 0
     out = capsys.readouterr().out.splitlines()
     header = out[0].split(",")
-    assert "id_orig_h" in header and "tag" in header and "." not in out[0]
+    assert "id_orig_h" in header
+    assert "tag" in header
+    assert "." not in out[0]
     assert len(out) == 1 + _data_lines(data_dir / RDP)
 
 
@@ -64,10 +69,12 @@ def test_csv_of_json_log_infers_fields(capsys, data_dir):
 def test_fields_command(capsys, data_dir):
     assert cli.main(["fields", str(data_dir / RDP)]) == 0
     out = capsys.readouterr().out
-    assert "ts\ttime" in out and "id.orig_h\taddr" in out
+    assert "ts\ttime" in out
+    assert "id.orig_h\taddr" in out
     assert cli.main(["fields", str(data_dir / "rdp_sharprdp/json/rdp.log")]) == 0
     out = capsys.readouterr().out
-    assert "ts\tfloat" in out and "uid\tstr" in out
+    assert "ts\tfloat" in out
+    assert "uid\tstr" in out
 
 
 @pytest.mark.parametrize("bad", ["not json", "[1]", '"s"'])
@@ -127,7 +134,7 @@ def test_elk_passes_options(data_dir, caplog):
             "-u",
             "elastic",
             "-p",
-            "pw",
+            BASIC_AUTH_SECRET,
             "--api-key",
             "k",
             "--ca-certs",
@@ -145,7 +152,7 @@ def test_elk_passes_options(data_dir, caplog):
     make_client.assert_called_once_with(
         "https://es:9200",
         user="elastic",
-        password="pw",
+        password=BASIC_AUTH_SECRET,
         api_key="k",
         ca_certs="ca.pem",
         verify_certs=False,
@@ -162,7 +169,8 @@ def test_elk_failures_return_1(data_dir, caplog):
     rc, *_ = _run_elk(
         ["elk", str(data_dir / RDP), "localhost"], LoadResult(indexed=1, failed=1, errors=["boom"])
     )
-    assert rc == 1 and "boom" in caplog.text
+    assert rc == 1
+    assert "boom" in caplog.text
 
 
 def test_elk_prompts_for_password(data_dir):
@@ -213,7 +221,8 @@ def test_json_ecs_output(capsys, data_dir):
     first = json.loads(capsys.readouterr().out.splitlines()[0])
     assert first["event"]["dataset"] == "zeek.connection"
     assert first["ecs"]["version"]
-    assert first["source"]["ip"] and first["observer"]["name"] == "s1"
+    assert first["source"]["ip"]
+    assert first["observer"]["name"] == "s1"
 
 
 def test_elk_ecs_flag_reaches_loader(data_dir):
