@@ -43,6 +43,13 @@ def test_json_to_file_multiple_inputs(tmp_path, data_dir, caplog):
     assert f"{len(lines)} records written" in caplog.text
 
 
+def test_csv_to_file_logs_count(tmp_path, data_dir, caplog):
+    out = tmp_path / "out.csv"
+    assert cli.main(["csv", str(data_dir / RDP), "-o", str(out)]) == 0
+    assert len(out.read_text().splitlines()) == _data_lines(data_dir / RDP) + 1
+    assert f"{_data_lines(data_dir / RDP)} records written" in caplog.text
+
+
 def test_csv_default_fields_and_safe_headers(capsys, data_dir):
     assert cli.main(["csv", str(data_dir / RDP), "--safe-headers", "-m", '{"tag": "x"}']) == 0
     out = capsys.readouterr().out.splitlines()
@@ -197,6 +204,15 @@ def test_elk_transport_error(data_dir, caplog):
     ):
         assert cli.main(["elk", str(data_dir / RDP), "localhost"]) == 1
     assert "Elasticsearch error" in caplog.text
+
+
+def test_elk_unreadable_input(data_dir, caplog):
+    with (
+        mock.patch("parsezeeklogs.elastic.make_client", return_value=mock.Mock()),
+        mock.patch("parsezeeklogs.elastic.ZeekToElk.load_many", side_effect=OSError("gone")),
+    ):
+        assert cli.main(["elk", str(data_dir / RDP), "localhost"]) == 1
+    assert "cannot read input" in caplog.text
 
 
 def test_elk_without_extra(data_dir, caplog):

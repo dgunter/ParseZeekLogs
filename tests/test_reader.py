@@ -432,3 +432,19 @@ def test_write_csv_header_only_when_no_records():
     empty = io.StringIO()
     assert write_csv([], empty) == 0
     assert empty.getvalue() == ""
+
+
+def test_header_only_log_yields_nothing_and_iterates_once():
+    src = io.StringIO("#separator \\x09\n#fields\ta\n#types\tcount\n")
+    log = ZeekLog(src)
+    assert list(log) == []
+    assert list(log) == []  # a second pass finds the stream exhausted
+    assert log.fields == ["a"]
+
+
+def test_borrowed_stream_is_not_closed():
+    src = tsv("a", "count", "5")
+    log = ZeekLog(src)
+    assert [r["a"] for r in log] == [5]
+    log.close()
+    assert not src.closed
