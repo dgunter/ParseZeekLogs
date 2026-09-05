@@ -1,6 +1,6 @@
-from parsezeeklogs import ParseZeekLogs
+"""Print each conn.log record as a JSON object."""
 
-# Print the field line out
-for log_record in ParseZeekLogs("conn.log", output_format="json", safe_headers=False):
-    if log_record is not None:
-        print(str(log_record))
+from parsezeeklogs import read_zeek, to_json
+
+for record in read_zeek("conn.log"):
+    print(to_json(record))

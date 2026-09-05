@@ -1,0 +1,11 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	ssl
+#open	2026-09-05-17-07-43
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	version	cipher	curve	server_name	resumed	last_alert	next_protocol	established	ssl_history	cert_chain_fps	client_cert_chain_fps	sni_matches_cert	validation_status
+#types	time	string	addr	port	addr	port	string	string	string	string	bool	string	string	bool	string	vector[string]	vector[string]	bool	string
+1595284457.722958	CJKFoj4bpHEhTeaRoj	192.168.56.1	59281	192.168.56.101	3389	TLSv12	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384	secp384r1	192.168.56.101	F	-	-	T	CsxknGIi	9cfa585189dbf47d29ed69320324018e811a6becb3913927ff0b8d511e1f886a	(empty)	F	self signed certificate
+1595284485.001423	C1O2lF3JKzfTRwEgg7	192.168.56.1	59285	192.168.56.101	3389	TLSv12	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384	secp384r1	192.168.56.101	F	-	-	T	CsxknGIi	9cfa585189dbf47d29ed69320324018e811a6becb3913927ff0b8d511e1f886a	(empty)	F	self signed certificate
+#close	2026-09-05-17-07-43

@@ -1,29 +1,20 @@
 #!/usr/bin/env python3
+"""Convert Zeek logs to JSON lines: ./zeek_to_json.py *.log  (conn.log -> conn.json).
 
-# File: zeek_to_json.py
-# Description: Convert multiple bro files to json
-#
-# Usage: 
-#   ./zeek_to_json.py *.log
-#  ^^ will convert all zeek logs in this directory to same filename + .json (example: conn.log -> conn.json)
+The same thing is available as ``parsezeeklogs json conn.log -o conn.json``.
+"""
 
-from parsezeeklogs import ParseZeekLogs
 import argparse
 import os
 
+from parsezeeklogs import read_zeek, write_json_lines
+
 if __name__ == "__main__":
-    # Create argument parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('zeekfile',  nargs='+', help="Zeek file file to parse")
-
-    # Parse arguments 
+    parser.add_argument("zeekfile", nargs="+", help="Zeek log files to convert")
     args = parser.parse_args()
-
-    # Loop through each Bro file and convert to json
     for zeek_file in args.zeekfile:
-        outfilename = os.path.splitext(zeek_file)[0] + '.json'
-
-        #log_data = ParseBroLogs(bro_file)
-        with open(outfilename, "w") as outfile:
-            for log_data in ParseZeekLogs(zeek_file, output_format="json"):
-                outfile.write(log_data)
+        out_name = os.path.splitext(zeek_file)[0] + ".json"
+        with open(out_name, "w", encoding="utf-8") as out:
+            count = write_json_lines(read_zeek(zeek_file), out)
+        print(f"{zeek_file}: {count} records -> {out_name}")

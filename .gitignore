@@ -1,0 +1,36 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*_TOKEN*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local corpora and generated Zeek logs (see scripts/generate_zeek_logs.sh)
+.cache/
+
+# SonarCloud scanner
+.scannerwork/
+
+# Claude Code worktrees created inside the repo
+.claude/worktrees/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

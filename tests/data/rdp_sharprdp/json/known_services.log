@@ -1,0 +1,3 @@
+{"ts":1595284457.722958,"host":"192.168.56.101","port_num":3389,"port_proto":"tcp","service":["SSL"]}
+{"ts":1595284458.815745,"host":"192.168.56.101","port_num":3389,"port_proto":"udp","service":["RDPEUDP"]}
+{"ts":1595284496.537602,"host":"192.168.56.100","port_num":67,"port_proto":"udp","service":["DHCP"]}
