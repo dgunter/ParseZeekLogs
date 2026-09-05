@@ -1,5 +1,6 @@
 import os
 import pathlib
+import time
 
 import pytest
 
@@ -8,6 +9,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 ES_URL = os.environ.get("PARSEZEEKLOGS_ES_URL", "http://localhost:9200")
 REQUIRE_ES = os.environ.get("PARSEZEEKLOGS_REQUIRE_ES", "").lower() in {"1", "true", "yes"}
+WAIT_SECONDS = int(os.environ.get("PARSEZEEKLOGS_ES_WAIT", "120"))
 
 
 @pytest.fixture(scope="session")
@@ -20,15 +22,22 @@ def es_url() -> str:
     """URL of a live Elasticsearch, or skip (fail when PARSEZEEKLOGS_REQUIRE_ES is set)."""
     from elasticsearch import Elasticsearch
 
-    client = Elasticsearch(ES_URL, request_timeout=5)
-    try:
-        if client.ping():
-            return ES_URL
-        reason = f"Elasticsearch at {ES_URL} did not answer ping"
-    except Exception as exc:  # noqa: BLE001 - any transport problem means "not reachable"
-        reason = f"Elasticsearch at {ES_URL} not reachable: {exc}"
-    finally:
-        client.close()
+    # A freshly started cluster (CI service container) can accept TCP connections
+    # before it serves HTTP, so keep trying for a while when the tests require it.
+    deadline = time.monotonic() + (WAIT_SECONDS if REQUIRE_ES else 5)
+    reason = f"Elasticsearch at {ES_URL} did not answer"
+    while True:
+        client = Elasticsearch(ES_URL, request_timeout=5, max_retries=0)
+        try:
+            if client.ping():
+                return ES_URL
+        except Exception as exc:  # noqa: BLE001 - any transport problem means "not yet"
+            reason = f"Elasticsearch at {ES_URL} not reachable: {exc}"
+        finally:
+            client.close()
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(3)
     if REQUIRE_ES:
         pytest.fail(reason)
     pytest.skip(reason)
