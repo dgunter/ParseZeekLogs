@@ -149,7 +149,7 @@ class ParseZeekLogs(object):
                         else:
                             keys_to_delete.append(k)
                     elif data_types.get(k) == "bool":
-                        data[k] = bool(v)
+                        data[k] = str(v).lower() == 't'
                     else:
                         data[k] = v
 
