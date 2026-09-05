@@ -73,6 +73,9 @@ source = ["parsezeeklogs"]
 branch = true
 omit = ["parsezeeklogs/__main__.py"]
 
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

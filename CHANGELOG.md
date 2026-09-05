@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Tests now cover every line and branch of the package: the type coercion
+  helpers, the per-log post-processors' edge cases, the index mapping for
+  every field shape, and the CLI and reader error paths.
+- The ECS index mapping skips children of `flattened` fields, which
+  Elasticsearch cannot map; the published field table has none, so the
+  generated mapping is unchanged.
+- Removed the unused `ZeekLog.field_types` property; use `ZeekLog.types`.
+
 ## 3.0.0 - 2026-09-05
 
 Rewrite for current Python and Zeek. The 2.x `ParseZeekLogs` iterator still

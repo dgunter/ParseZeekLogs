@@ -100,10 +100,6 @@ class ZeekHeader:
             self.types = rest.split(self.separator) if rest else []
         self.directives[key] = rest
 
-    @property
-    def field_types(self) -> dict[str, str]:
-        return dict(zip(self.fields, self.types, strict=False))
-
 
 def _format_time(value: float, time_format: TimeFormat) -> Any:
     if time_format == "epoch":

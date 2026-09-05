@@ -743,11 +743,8 @@ def unflatten(flat: Flat) -> dict[str, Any]:
                 node[part] = child_obj
                 child = child_obj
             node = child
-        leaf = parts[-1]
-        if isinstance(node.get(leaf), dict):
-            node[leaf]["value"] = flat[key]
-        else:
-            node[leaf] = flat[key]
+        # Keys are visited shortest first, so a leaf can never already be an object here.
+        node[parts[-1]] = flat[key]
     return out
 
 
@@ -806,6 +803,17 @@ def to_ecs(
 _CONTAINER_TYPES = {"object", "nested", "flattened"}
 
 
+def _mapping_parent(root: dict[str, Any], parts: list[str]) -> dict[str, Any] | None:
+    """The ``properties`` dict that holds ``parts``; None when an ancestor is flattened."""
+    node = root
+    for part in parts:
+        node = node.setdefault(part, {"type": "object", "properties": {}})
+        if node.get("type") == "flattened":
+            return None
+        node = node.setdefault("properties", {})
+    return node
+
+
 def ecs_index_body() -> dict[str, Any]:
     """Elasticsearch index body whose mapping mirrors :data:`FIELD_TYPES`."""
     types = dict(FIELD_TYPES)
@@ -816,12 +824,9 @@ def ecs_index_body() -> dict[str, Any]:
     for key in sorted(types, key=lambda k: (k.count("."), k)):
         ftype = types[key]
         parts = key.split(".")
-        node = root
-        for part in parts[:-1]:
-            node = node.setdefault(part, {"type": "object", "properties": {}})
-            if ftype != "flattened" and "properties" not in node:
-                node["properties"] = {}
-            node = node["properties"]
+        node = _mapping_parent(root, parts[:-1])
+        if node is None:
+            continue  # children of a flattened field are not mapped
         leaf = parts[-1]
         if key in prefixes and ftype not in _CONTAINER_TYPES:
             # A scalar that is also a parent: Elasticsearch cannot map both, keep the object.
