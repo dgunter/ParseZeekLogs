@@ -1,6 +1,6 @@
 [project]
 name = "parsezeeklogs"
-version = "3.0.0"
+version = "3.0.1"
 description = "Read Zeek (Bro) network security monitor logs, TSV or JSON, into typed Python records; convert to JSON or CSV; load into Elasticsearch."
 readme = "README.md"
 license = "Apache-2.0"
