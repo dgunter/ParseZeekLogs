@@ -1,0 +1,17 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	dns
+#open	2026-09-05-17-07-43
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	proto	trans_id	rtt	query	qclass	qclass_name	qtype	qtype_name	rcode	rcode_name	AA	TC	RD	RA	Z	answers	TTLs	rejected	opcode	opcode_name
+#types	time	string	addr	port	addr	port	enum	count	interval	string	count	string	count	string	count	string	bool	bool	bool	bool	count	vector[string]	vector[interval]	bool	count	string
+1595284458.733203	CJioLj2aEkGc9R3T0b	192.168.56.101	5353	224.0.0.251	5353	udp	0	0.000408	msedgewin10.local	1	C_INTERNET	255	*	0	NOERROR	T	F	F	F	0	fe80::c50d:519f:96a4:e108,192.168.56.101	60.000000,60.000000	F	0	query
+1595284458.733761	CcvuMe3KIDgdxGsNCd	fe80::c50d:519f:96a4:e108	5353	ff02::fb	5353	udp	0	0.000796	msedgewin10.local	1	C_INTERNET	255	*	0	NOERROR	T	F	F	F	0	fe80::c50d:519f:96a4:e108,192.168.56.101	60.000000,60.000000	F	0	query
+1595284458.764030	CJioLj2aEkGc9R3T0b	192.168.56.101	5353	224.0.0.251	5353	udp	0	0.001057	msedgewin10.local	1	C_INTERNET	255	*	0	NOERROR	T	F	F	F	0	fe80::c50d:519f:96a4:e108,192.168.56.101	60.000000,60.000000	F	0	query
+1595284458.764629	CcvuMe3KIDgdxGsNCd	fe80::c50d:519f:96a4:e108	5353	ff02::fb	5353	udp	0	0.000976	msedgewin10.local	1	C_INTERNET	255	*	0	NOERROR	T	F	F	F	0	fe80::c50d:519f:96a4:e108,192.168.56.101	60.000000,60.000000	F	0	query
+1595284458.736102	CpuDPN1X7c0rKhM3Ik	fe80::c50d:519f:96a4:e108	50687	ff02::1:3	5355	udp	28086	-	msedgewin10	1	C_INTERNET	255	*	-	-	F	F	F	F	0	-	-	F	0	query
+1595284458.736530	CRmE1y3QIW6Zmd10g1	192.168.56.101	50687	224.0.0.252	5355	udp	28086	-	msedgewin10	1	C_INTERNET	255	*	-	-	F	F	F	F	0	-	-	F	0	query
+1595284458.765516	CIrGew2SfruONAsgA8	fe80::c50d:519f:96a4:e108	55169	ff02::1:3	5355	udp	44658	-	msedgewin10	1	C_INTERNET	255	*	-	-	F	F	F	F	0	-	-	F	0	query
+1595284458.765838	CvlFWu15VAZDKRaYQa	192.168.56.101	55169	224.0.0.252	5355	udp	44658	-	msedgewin10	1	C_INTERNET	255	*	-	-	F	F	F	F	0	-	-	F	0	query
+#close	2026-09-05-17-07-43

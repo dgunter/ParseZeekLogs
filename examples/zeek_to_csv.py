@@ -1,6 +1,8 @@
-from parsezeeklogs import ParseZeekLogs
+"""Write selected conn.log columns to out.csv (CLI: parsezeeklogs csv conn.log -f ...)."""
 
-with open('out.csv',"w") as outfile:
-    for log_record in ParseZeekLogs("conn.log", output_format="csv", safe_headers=False, fields=["ts","id.orig_h","id.orig_p","id.resp_h","id.resp_p"]):
-        if log_record is not None:
-            outfile.write(log_record + "\n")
+from parsezeeklogs import read_zeek, write_csv
+
+FIELDS = ["ts", "id.orig_h", "id.orig_p", "id.resp_h", "id.resp_p"]
+
+with open("out.csv", "w", encoding="utf-8", newline="") as out:
+    write_csv(read_zeek("conn.log", fields=FIELDS), out, FIELDS)

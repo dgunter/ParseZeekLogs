@@ -1,0 +1,10 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	known_certs
+#open	2026-09-05-17-07-43
+#fields	ts	host	port_num	subject	issuer_subject	serial
+#types	time	addr	port	string	string	string
+1595284457.750249	192.168.56.101	3389	CN=MSEDGEWIN10	CN=MSEDGEWIN10	4DDD6391C62B55944C955896E31FAE5C
+#close	2026-09-05-17-07-43

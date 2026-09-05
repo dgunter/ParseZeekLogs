@@ -1,0 +1,11 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	rdp
+#open	2026-09-05-17-07-43
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	cookie	result	security_protocol	client_channels	keyboard_layout	client_build	client_name	client_dig_product_id	desktop_width	desktop_height	requested_color_depth	cert_type	cert_count	cert_permanent	encryption_level	encryption_method
+#types	time	string	addr	port	addr	port	string	string	string	vector[string]	string	string	string	string	count	count	string	string	count	bool	string	string
+1595284457.573703	CJKFoj4bpHEhTeaRoj	192.168.56.1	59281	192.168.56.101	3389	IEUser	encrypted	HYBRID_EX	-	-	-	-	-	-	-	-	-	0	-	-	-
+1595284484.989548	C1O2lF3JKzfTRwEgg7	192.168.56.1	59285	192.168.56.101	3389	IEUser	encrypted	HYBRID_EX	-	-	-	-	-	-	-	-	-	0	-	-	-
+#close	2026-09-05-17-07-43
